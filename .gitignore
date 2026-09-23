@@ -1,0 +1,26 @@
+# =========================
+# Frontend - React / Vite
+# =========================
+campusfix-frontend/node_modules/
+campusfix-frontend/dist/
+campusfix-frontend/.env
+campusfix-frontend/.env.local
+
+# =========================
+# Backend - Spring Boot
+# =========================
+campusfix-backend/target/
+campusfix-backend/.idea/
+campusfix-backend/*.iml
+campusfix-backend/.env
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
