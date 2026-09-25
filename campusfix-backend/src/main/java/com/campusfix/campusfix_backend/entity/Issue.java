@@ -19,18 +19,20 @@ public class Issue {
     private String category;
 
     private String status;
+    private String priority;
 
     public Issue() {
     }
 
     public Issue(String title, String description, String location,
-                  String category, String status) {
-        this.title = title;
-        this.description = description;
-        this.location = location;
-        this.category = category;
-        this.status = status;
-    }
+             String category, String status, String priority) {
+    this.title = title;
+    this.description = description;
+    this.location = location;
+    this.category = category;
+    this.status = status;
+    this.priority = priority;
+}
 
     public Long getId() {
         return id;
@@ -75,4 +77,11 @@ public class Issue {
     public void setStatus(String status) {
         this.status = status;
     }
+    public String getPriority() {
+    return priority;
+}
+
+public void setPriority(String priority) {
+    this.priority = priority;
+}
 }

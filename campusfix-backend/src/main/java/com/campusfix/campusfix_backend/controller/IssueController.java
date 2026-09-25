@@ -53,5 +53,5 @@ public ResponseEntity<Issue> updateStatus(
     return issueService.updateStatus(id, status)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
-}
+    }
 }

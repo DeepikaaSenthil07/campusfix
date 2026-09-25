@@ -4,16 +4,23 @@ import './App.css';
 function App() {
   const [showForm, setShowForm] = useState(false);
   const [issues, setIssues] = useState([]);
+  const [selectedIssue, setSelectedIssue] = useState(null);
   const formRef = useRef(null);
+  const detailsRef = useRef(null);
+
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
 
   const [formData, setFormData] = useState({
     title: '',
     category: '',
     location: '',
-    description: ''
+    description: '',
+    priority: ''
   });
 
-  // Fetch all issues from the backend
+  // Fetch all issues from backend
   const fetchIssues = async () => {
     try {
       const response = await fetch('http://localhost:8080/issues');
@@ -29,11 +36,12 @@ function App() {
     }
   };
 
-  // Fetch issues when the page loads
+  // Fetch issues when page loads
   useEffect(() => {
     fetchIssues();
   }, []);
 
+  // Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -43,8 +51,20 @@ function App() {
     });
   };
 
+  // Submit new issue
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (
+      !formData.title.trim() ||
+      !formData.category ||
+      !formData.priority ||
+      !formData.location.trim() ||
+      !formData.description.trim()
+    ) {
+      alert('Please fill in all fields.');
+      return;
+    }
 
     try {
       const response = await fetch('http://localhost:8080/issues', {
@@ -61,7 +81,6 @@ function App() {
       if (response.ok) {
         const newIssue = await response.json();
 
-        // Add the newly created issue to the screen
         setIssues((prevIssues) => [...prevIssues, newIssue]);
 
         alert('Issue submitted successfully!');
@@ -70,69 +89,116 @@ function App() {
           title: '',
           category: '',
           location: '',
-          description: ''
+          description: '',
+          priority: ''
         });
 
         setShowForm(false);
       } else {
         alert('Failed to submit the issue.');
       }
-
     } catch (error) {
       console.error('Error:', error);
       alert('Could not connect to the backend.');
     }
   };
-  const handleDelete = async (id) => {
-  try {
-    const response = await fetch(`http://localhost:8080/issues/${id}`, {
-      method: 'DELETE'
-    });
 
-    if (response.ok) {
-      // Remove the deleted issue from the screen
-      setIssues((prevIssues) =>
-        prevIssues.filter((issue) => issue.id !== id)
+  // Delete issue
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/issues/${id}`,
+        {
+          method: 'DELETE'
+        }
       );
 
-      alert('Issue deleted successfully.');
-    } else {
-      alert('Failed to delete the issue.');
-    }
+      if (response.ok) {
+        setIssues((prevIssues) =>
+          prevIssues.filter((issue) => issue.id !== id)
+        );
 
-  } catch (error) {
-    console.error('Error deleting issue:', error);
-    alert('Could not connect to the backend.');
-  }
-};
-const handleStatusChange = async (id, newStatus) => {
+        alert('Issue deleted successfully.');
+      } else {
+        alert('Failed to delete the issue.');
+      }
+    } catch (error) {
+      console.error('Error deleting issue:', error);
+      alert('Could not connect to the backend.');
+    }
+  };
+  const handleViewIssue = async (id) => {
   try {
     const response = await fetch(
-      `http://localhost:8080/issues/${id}/status?status=${newStatus}`,
-      {
-        method: 'PUT'
-      }
+      `http://localhost:8080/issues/${id}`
     );
 
-    if (response.ok) {
-      const updatedIssue = await response.json();
-
-      setIssues((prevIssues) =>
-        prevIssues.map((issue) =>
-          issue.id === id ? updatedIssue : issue
-        )
-      );
-
-      alert('Status updated successfully.');
-    } else {
-      alert('Failed to update status.');
+    if (!response.ok) {
+      throw new Error('Failed to fetch issue');
     }
 
+    const issue = await response.json();
+
+    setSelectedIssue(issue);
+
   } catch (error) {
-    console.error('Error updating status:', error);
-    alert('Could not connect to the backend.');
+    console.error('Error fetching issue:', error);
+    alert('Could not load issue details.');
   }
 };
+
+  // Change issue status
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/issues/${id}/status?status=${newStatus}`,
+        {
+          method: 'PUT'
+        }
+      );
+
+      if (response.ok) {
+        const updatedIssue = await response.json();
+
+        setIssues((prevIssues) =>
+          prevIssues.map((issue) =>
+            issue.id === id ? updatedIssue : issue
+          )
+        );
+
+        alert('Status updated successfully.');
+      } else {
+        alert('Failed to update status.');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Could not connect to the backend.');
+    }
+  };
+
+  // Filter issues
+  const filteredIssues = issues.filter((issue) => {
+    const statusMatches =
+      statusFilter === 'ALL' ||
+      issue.status === statusFilter;
+
+    const priorityMatches =
+      priorityFilter === 'ALL' ||
+      (priorityFilter === 'NONE'
+        ? !issue.priority
+        : issue.priority === priorityFilter);
+
+    const categoryMatches =
+      categoryFilter === 'ALL' ||
+      issue.category === categoryFilter;
+
+    return (
+      statusMatches &&
+      priorityMatches &&
+      categoryMatches
+    );
+  });
+
   return (
     <div className="app">
 
@@ -142,10 +208,9 @@ const handleStatusChange = async (id, newStatus) => {
         <p>Smart Campus Issue Reporting System</p>
       </header>
 
-      {/* Main Content */}
       <main className="main-content">
 
-        {/* Hero */}
+        {/* Hero Section */}
         <section className="hero">
           <h2>Report. Track. Resolve.</h2>
 
@@ -195,7 +260,54 @@ const handleStatusChange = async (id, newStatus) => {
           </div>
 
         </section>
+        {/* Issue Details */}
+{selectedIssue && (
+  <section
+    className="issue-details"
+    ref={detailsRef}
+  >
+    <div className="issue-details-header">
+      <h2>Issue Details</h2>
 
+      <button
+        className="close-btn"
+        onClick={() => setSelectedIssue(null)}
+      >
+        ✕
+      </button>
+    </div>
+
+    <h3>{selectedIssue.title}</h3>
+
+    <p>
+      <strong>Category:</strong> {selectedIssue.category}
+    </p>
+
+    <p>
+      <strong>Location:</strong> {selectedIssue.location}
+    </p>
+
+    <p>
+      <strong>Description:</strong> {selectedIssue.description}
+    </p>
+
+    <p>
+      <strong>Status:</strong> {selectedIssue.status}
+    </p>
+
+    <p>
+      <strong>Priority:</strong>{' '}
+      {selectedIssue.priority || 'Not Specified'}
+    </p>
+
+    <button
+      className="close-details-btn"
+      onClick={() => setSelectedIssue(null)}
+    >
+      Close
+    </button>
+  </section>
+)}
         {/* Report Form */}
         {showForm && (
           <form
@@ -244,6 +356,20 @@ const handleStatusChange = async (id, newStatus) => {
               <option>Other</option>
             </select>
 
+            <label>Priority</label>
+
+            <select
+              name="priority"
+              value={formData.priority}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Select priority</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+            </select>
+
             <label>Location</label>
 
             <input
@@ -266,7 +392,10 @@ const handleStatusChange = async (id, newStatus) => {
               required
             />
 
-            <button className="submit-btn" type="submit">
+            <button
+              className="submit-btn"
+              type="submit"
+            >
               Submit Report
             </button>
 
@@ -276,54 +405,181 @@ const handleStatusChange = async (id, newStatus) => {
         {/* Reported Issues */}
         <section className="issues-section">
 
-          <h2>Reported Issues</h2>
+          <div className="issues-heading">
+            <h2>Reported Issues</h2>
 
-          {issues.length === 0 ? (
-            <p>No issues reported yet.</p>
+            <p>
+              Showing {filteredIssues.length} of {issues.length} issues
+            </p>
+          </div>
+
+          {/* Filters */}
+          <div className="filters">
+
+            <div className="filter-group">
+              <label>Status</label>
+
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value)
+                }
+              >
+                <option value="ALL">All</option>
+                <option value="OPEN">Open</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="RESOLVED">Resolved</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Priority</label>
+
+              <select
+                value={priorityFilter}
+                onChange={(e) =>
+                  setPriorityFilter(e.target.value)
+                }
+              >
+                <option value="ALL">All</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+                <option value="NONE">Not Specified</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Category</label>
+
+              <select
+                value={categoryFilter}
+                onChange={(e) =>
+                  setCategoryFilter(e.target.value)
+                }
+              >
+                <option value="ALL">All</option>
+                <option value="Infrastructure">Infrastructure</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Water & Sanitation">
+                  Water & Sanitation
+                </option>
+                <option value="Cleanliness">Cleanliness</option>
+                <option value="Safety">Safety</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <button
+              className="clear-filter-btn"
+              onClick={() => {
+                setStatusFilter('ALL');
+                setPriorityFilter('ALL');
+                setCategoryFilter('ALL');
+              }}
+            >
+              Clear Filters
+            </button>
+
+          </div>
+
+          {/* Issue Cards */}
+          {filteredIssues.length === 0 ? (
+
+            <p className="no-issues">
+              No issues match the selected filters.
+            </p>
+
           ) : (
+
             <div className="issues-list">
 
-              {issues.map((issue) => (
-                <div className="issue-card" key={issue.id}>
+              {filteredIssues.map((issue) => (
+
+                <div
+                  className="issue-card"
+                  key={issue.id}
+                >
 
                   <div className="issue-card-header">
-  <h3>{issue.title}</h3>
 
-  <select
-    className="status-select"
-    value={issue.status}
-    onChange={(e) =>
-      handleStatusChange(issue.id, e.target.value)
-    }
+                    <h3>{issue.title}</h3>
+
+                    <select
+                      className="status-select"
+                      value={issue.status}
+                      onChange={(e) =>
+                        handleStatusChange(
+                          issue.id,
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="OPEN">
+                        OPEN
+                      </option>
+
+                      <option value="IN_PROGRESS">
+                        IN PROGRESS
+                      </option>
+
+                      <option value="RESOLVED">
+                        RESOLVED
+                      </option>
+                    </select>
+
+                  </div>
+
+                  <p>
+                    <strong>Category:</strong>{' '}
+                    {issue.category}
+                  </p>
+
+                  <p>
+                    <strong>Priority:</strong>{' '}
+                    {issue.priority || 'Not specified'}
+                  </p>
+
+                  <p>
+                    <strong>Location:</strong>{' '}
+                    {issue.location}
+                  </p>
+
+                  <p>
+                    <strong>Description:</strong>{' '}
+                    {issue.description}
+                  </p>
+
+                  <div className="issue-actions">
+  <button
+  onClick={() => {
+    setSelectedIssue(issue);
+
+    setTimeout(() => {
+      detailsRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
+  }}
+>
+  View Details
+</button>
+
+  <button
+    className="delete-btn"
+    onClick={() => handleDelete(issue.id)}
   >
-    <option value="OPEN">OPEN</option>
-    <option value="IN_PROGRESS">IN PROGRESS</option>
-    <option value="RESOLVED">RESOLVED</option>
-  </select>
+    Delete
+  </button>
 </div>
 
-                  <p>
-                    <strong>Category:</strong> {issue.category}
-                  </p>
-
-                  <p>
-                    <strong>Location:</strong> {issue.location}
-                  </p>
-
-                  <p>
-                    <strong>Description:</strong> {issue.description}
-                  </p>
-                  <button
-                    className="delete-btn"
-                    onClick={() => handleDelete(issue.id)}
-                  >
-                    Delete
-                  </button>
-
                 </div>
+
               ))}
 
             </div>
+
           )}
 
         </section>
